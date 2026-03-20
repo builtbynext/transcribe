@@ -17,6 +17,19 @@ def load_model() -> WhisperModel:
     return _model
 
 
+def _build_paragraph(sentences: list[dict]) -> dict:
+    """Join sentences into a paragraph, capitalising only the first character."""
+    text = " ".join(s["text"] for s in sentences)
+    if text:
+        text = text[0].upper() + text[1:]
+    return {
+        "text": text,
+        "start": sentences[0]["start"],
+        "end": sentences[-1]["end"],
+        "sentences": sentences,
+    }
+
+
 def transcribe_wma(file_bytes: bytes, filename: str) -> dict:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
@@ -61,31 +74,18 @@ def transcribe_wma(file_bytes: bytes, filename: str) -> dict:
             if not text:
                 continue
 
-            # Capitalize first character of each segment
-            text = text[0].upper() + text[1:] if len(text) > 1 else text.upper()
-
             long_pause = prev_end is not None and (segment.start - prev_end) > PAUSE_THRESHOLD
             max_reached = len(current_sentences) >= MAX_SENTENCES
 
             if (long_pause or max_reached) and current_sentences:
-                paragraphs.append({
-                    "text": " ".join(s["text"] for s in current_sentences),
-                    "start": current_sentences[0]["start"],
-                    "end": current_sentences[-1]["end"],
-                    "sentences": current_sentences,
-                })
+                paragraphs.append(_build_paragraph(current_sentences))
                 current_sentences = []
 
             current_sentences.append({"text": text, "start": segment.start, "end": segment.end})
             prev_end = segment.end
 
         if current_sentences:
-            paragraphs.append({
-                "text": " ".join(s["text"] for s in current_sentences),
-                "start": current_sentences[0]["start"],
-                "end": current_sentences[-1]["end"],
-                "sentences": current_sentences,
-            })
+            paragraphs.append(_build_paragraph(current_sentences))
 
         full_text = "\n\n".join(p["text"] for p in paragraphs)
         return {
