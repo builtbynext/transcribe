@@ -80,7 +80,17 @@ def build_sections(paragraphs: list[dict]) -> list[dict]:
 
 
 def _make_header(section_text: str) -> str:
-    """Use KeyBERT to extract the most representative keyphrase as the header."""
+    """Generate a concise topic header for this section using BART-CNN,
+    falling back to KeyBERT if BART is unavailable."""
+    from bart import summarize_header, _header_model
+
+    if _header_model is not None and section_text.strip():
+        try:
+            return summarize_header(section_text)
+        except Exception:
+            pass
+
+    # Fallback: KeyBERT
     global _kw_model
     if _kw_model is None or not section_text.strip():
         return "General"
@@ -93,7 +103,6 @@ def _make_header(section_text: str) -> str:
             top_n=1,
         )
         if keywords:
-            # keywords is a list of (keyphrase, score) tuples
             return keywords[0][0].title()
         return "General"
     except Exception:

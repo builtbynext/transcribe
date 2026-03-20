@@ -2,6 +2,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from bart import correct_text, load_bart_model
 from clustering import build_sections, load_embed_model
 from cleanup import clean_sentence
 from transcribe import load_model, transcribe_wma
@@ -20,6 +21,7 @@ app.add_middleware(
 async def startup():
     load_model()
     load_embed_model()
+    load_bart_model()
 
 
 @app.post("/transcribe")
@@ -62,6 +64,10 @@ async def enhance(req: EnhanceRequest):
             "text": cleaned_text,
             "sentences": cleaned_sentences,
         })
+
+    # BART text correction: fix grammar and Whisper errors
+    for para in cleaned_paragraphs:
+        para["text"] = correct_text(para["text"])
 
     try:
         sections = build_sections(cleaned_paragraphs)
