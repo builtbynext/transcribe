@@ -2,17 +2,27 @@
 
 import { useRef, useState } from "react";
 
+type Sentence = { text: string; start: number; end: number };
+type Paragraph = { text: string; start: number; end: number; sentences: Sentence[] };
+
 type State =
   | { status: "idle" }
   | { status: "processing"; stage: string }
-  | { status: "done"; text: string; paragraphs: string[]; duration: number }
+  | { status: "done"; text: string; paragraphs: Paragraph[]; duration: number }
   | { status: "error"; message: string };
+
+function formatTimestamp(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 
 export default function DropZone() {
   const [state, setState] = useState<State>({ status: "idle" });
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
+  const [selectionCopied, setSelectionCopied] = useState(false);
 
   function handleFile(file: File) {
     if (!file.name.toLowerCase().endsWith(".wma")) {
@@ -76,7 +86,19 @@ export default function DropZone() {
   function reset() {
     setState({ status: "idle" });
     setCopied(false);
+    setSelectionCopied(false);
     if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function handleMouseUp() {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed) return;
+    const selected = selection.toString().trim();
+    if (!selected) return;
+    navigator.clipboard.writeText(selected).then(() => {
+      setSelectionCopied(true);
+      setTimeout(() => setSelectionCopied(false), 1500);
+    });
   }
 
   // ── Idle ───────────────────────────────────────────────────────────────────
@@ -185,13 +207,23 @@ export default function DropZone() {
         </div>
       </div>
 
-      <div className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm max-h-[60vh] overflow-y-auto">
+      <div className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm max-h-[60vh] overflow-y-auto" onMouseUp={handleMouseUp}>
         {state.paragraphs.map((para, i) => (
-          <p key={i} className={["text-gray-800 leading-relaxed", i > 0 ? "mt-4" : ""].join(" ")}>
-            {para}
-          </p>
+          <div key={i} className={i > 0 ? "mt-5" : ""}>
+            <span className="font-mono text-xs text-gray-400 mr-2 select-none">
+              [{formatTimestamp(para.start)}]
+            </span>
+            <span className="text-gray-800 leading-relaxed">
+              {para.sentences.map(s => s.text).join(" ")}
+            </span>
+          </div>
         ))}
       </div>
+      {selectionCopied && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-3 py-1.5 rounded-full shadow-lg pointer-events-none z-50">
+          Copied!
+        </div>
+      )}
     </div>
   );
 }

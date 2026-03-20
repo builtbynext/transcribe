@@ -53,7 +53,7 @@ next.config.ts                UPDATE — raise body size limit to 200mb
 ### FastAPI app (`python/main.py`)
 - `POST /transcribe` — multipart/form-data, field `file`
 - CORS: `http://localhost:3000` only
-- Response: `{ text: string, paragraphs: string[], duration_seconds: number }`
+- Response: `{ text: string, paragraphs: Paragraph[], duration_seconds: number }` where `Paragraph = { text, start, end, sentences: Sentence[] }` and `Sentence = { text, start, end }`
 - Errors: 422 for non-.wma, 500 with message for pipeline failures
 - Model preloaded at startup — first request won't block on 30s download
 
@@ -82,6 +82,12 @@ faster-whisper>=1.1.0
 fastapi>=0.115.0
 uvicorn[standard]>=0.34.0
 python-multipart>=0.0.20
+
+- faster-whisper: This package is used for speech-to-text transcription. It helps convert audio files (like WMA) into written text quickly and efficiently.
+- fastapi: This is a web framework for building APIs. It lets you create endpoints so users can upload audio files and get transcriptions.
+- uvicorn[standard]: This is a server that runs your FastAPI app. It handles incoming web requests and sends responses.
+- python-multipart: This package helps FastAPI handle file uploads. It makes it possible for users to send audio files through the web interface.
+
 ```
 No new npm packages needed.
 
